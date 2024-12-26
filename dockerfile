@@ -1,52 +1,25 @@
-# Build stage
-FROM node:20-bullseye AS builder
 
-WORKDIR /app
+# Use the official Node.js 18 LTS runtime in slim variant
+FROM node:lts-slim
 
-# Install pnpm
-RUN npm install -g pnpm
+# Set the working directory in the container
+WORKDIR /usr/src/app
 
-# Copy package files and env file if it exists
-COPY package*.json .env* ./
-
-# Copy package files
+# Copy the package.json and package-lock.json files to the container
 COPY package*.json ./
 
-# Install dependencies including TypeScript
-RUN pnpm install
-RUN pnpm add -D typescript
+# Install any needed packages specified in package.json
+RUN npm install --production
 
-# Copy source code
+# Copy the current directory contents into the container
 COPY . .
 
-# Build TypeScript code
-RUN pnpm run build
+# Make port 80 available to the world outside this container
+EXPOSE 80
 
-# Production stage
-FROM node:20-bullseye
+# Define environment variable
+ENV NODE_ENV=production
 
-WORKDIR /app
+# Run the app when the container launches
+CMD ["npm", "start"]
 
-# Install pnpm
-RUN npm install -g pnpm
-
-# Copy package files and built code
-COPY --from=builder /app/package*.json ./
-COPY --from=builder /app/dist ./dist
-
-# Install production dependencies only
-RUN pnpm install --prod
-
-# Define environment variables
-ARG RESTACK_ENGINE_ID
-ENV RESTACK_ENGINE_ID=${RESTACK_ENGINE_ID}
-
-ARG RESTACK_ENGINE_ADDRESS 
-ENV RESTACK_ENGINE_ADDRESS=${RESTACK_ENGINE_ADDRESS}
-
-ARG RESTACK_ENGINE_API_KEY
-ENV RESTACK_ENGINE_API_KEY=${RESTACK_ENGINE_API_KEY}
-
-EXPOSE 3000
-
-CMD ["node", "dist/services.js"]
